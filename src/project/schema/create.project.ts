@@ -1,12 +1,14 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import mongoose, { Types } from 'mongoose';
+import mongoose from 'mongoose';
+import { User } from 'src/user/schema/user.schema';
 
 export interface ITask {
   taskId: string;
   tittle: string;
   description: string;
   priority: number;
-  dueDate: Date;
+  dueDateInMs: number;
+  status: boolean;
 }
 
 @Schema()
@@ -18,7 +20,7 @@ export class Project {
   description: string;
 
   @Prop({ required: true, type: mongoose.Schema.Types.ObjectId, ref: 'User' })
-  owner: Types.ObjectId;
+  owner: User;
 
   @Prop({
     type: [
@@ -27,7 +29,8 @@ export class Project {
         tittle: { type: String },
         description: { type: String },
         priority: { type: Number },
-        dueDate: { type: Date },
+        dueDateInMs: { type: Number },
+        status: { type: Boolean },
       },
     ],
   })
@@ -37,7 +40,7 @@ export class Project {
     type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     required: true,
   })
-  collaborators: Types.ObjectId[];
+  collaborators: User[];
 }
 
 export const ProjectSchema = SchemaFactory.createForClass(Project);

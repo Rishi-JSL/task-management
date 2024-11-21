@@ -2,9 +2,10 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { UserError } from 'src/auth/auth.service';
+import { DAYS_IN_MS, HOURS_IN_MS } from 'src/common/constants';
+import { TaskNotificationGateway } from 'src/gateway/task-notification.gateway';
 import { UserService } from 'src/user/user.service';
 import { ITask, Project } from './schema/create.project';
-import { TaskNotificationGateway } from 'src/gateway/task-notification.gateway';
 
 export enum ProjectError {
   ProjectNotFound = 'ProjectNotFound',
@@ -26,9 +27,9 @@ export class ProjectService {
     const project: Project = {
       title: title,
       description: description,
-      owner: owner._id,
+      owner: owner,
       tasks: [],
-      collaborators: [owner._id],
+      collaborators: [owner],
     };
     console.log('project details', project);
     const newProject = new this.projectModel(project);
@@ -41,7 +42,6 @@ export class ProjectService {
     projectId: string,
     collaboratorEmail: string,
   ) {
-    // user validation not required, validated using token
     const collaborator = await this.userService.findUser(collaboratorEmail);
     if (!collaborator) {
       return { error: UserError.CollaboratorNotFound };
@@ -51,12 +51,11 @@ export class ProjectService {
     if (!project) {
       return { error: ProjectError.ProjectNotFound };
     }
-    const owner = await this.userService.findUser(ownerEmail);
 
-    if (project.owner != owner?._id) {
+    if (project.owner.email != ownerEmail) {
       return { error: UserError.PermissionDenied };
     }
-    project.collaborators.push(collaborator._id);
+    project.collaborators.push(collaborator);
     const updatedProject = await project.save();
     this.taskNotify.sendNotificationForTask({
       message: `User ${collaboratorEmail} added to project ${updatedProject.title}`,
@@ -73,10 +72,17 @@ export class ProjectService {
     return { data: { task: tasks } };
   }
 
-  async deleteTaskFromProject(projectId: string, taskId: string) {
+  async deleteTaskFromProject(
+    ownerEmail: string,
+    projectId: string,
+    taskId: string,
+  ) {
     const project = await this.findProject(projectId);
     if (!project) {
       return { error: ProjectError.ProjectNotFound };
+    }
+    if (project.owner.email != ownerEmail) {
+      return { error: UserError.PermissionDenied };
     }
     project.tasks = project.tasks.filter((task: ITask) => {
       if (task.taskId == taskId) {
@@ -92,22 +98,27 @@ export class ProjectService {
   }
 
   async createTask(
+    ownerEmail: string,
     projectId: string,
     title: string,
     description: string,
     priority: number,
-    dueDate: Date,
+    days: number,
   ) {
     const project = await this.findProject(projectId);
     if (!project) {
       return { error: ProjectError.ProjectNotFound };
+    }
+    if (project.owner.email != ownerEmail) {
+      return { error: UserError.PermissionDenied };
     }
     const task: ITask = {
       taskId: this.getUniqueTaskId(),
       tittle: title,
       description: description,
       priority: priority,
-      dueDate: dueDate,
+      dueDateInMs: Date.now() + days * DAYS_IN_MS,
+      status: false,
     };
     project.tasks.push(task);
     const updatedProject = await project.save();
@@ -116,13 +127,57 @@ export class ProjectService {
     });
     return updatedProject;
   }
+  async getAllProjectPendingTaskOwner() {
+    const projects = await this.projectModel
+      .find({}, { _id: false, __v: false })
+      .exec();
+    const userPendingTask: Record<string, ITask[]> = {};
+    projects.forEach((project: Project) => {
+      const owner = String(project.owner);
+      project.tasks.forEach((task: ITask) => {
+        if (task.dueDateInMs - HOURS_IN_MS > Date.now()) {
+          if (!userPendingTask[owner]) {
+            userPendingTask[owner] = [task];
+          } else {
+            userPendingTask[owner].push(task);
+          }
+        }
+      });
+    });
+    return userPendingTask;
+  }
+
+  async updateTaskStatus(
+    ownerEmail: string,
+    projectId: string,
+    taskId: string,
+  ) {
+    const project = await this.findProject(projectId);
+    if (!project) {
+      return { error: ProjectError.ProjectNotFound };
+    }
+    if (project.owner.email != ownerEmail) {
+      return { error: UserError.PermissionDenied };
+    }
+    project.tasks.forEach((task: ITask) => {
+      if (task.taskId == taskId) {
+        task.status = task.status ? false : true;
+      }
+    });
+    return project.save();
+  }
+
   private getUniqueTaskId(): string {
     // TODO: Use uuid
     return String(Math.random());
   }
 
   private async findProject(id: string) {
-    const project = await this.projectModel.findById(id);
+    const project = await this.projectModel
+      .findById(id)
+      .populate('owner')
+      .populate('collaborator')
+      .exec();
     return project;
   }
 }

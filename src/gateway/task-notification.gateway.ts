@@ -19,6 +19,9 @@ export class TaskNotificationGateway implements OnModuleInit {
   sendNotificationForTask(data: { message: string }) {
     this.server.emit('taskNotification', data);
   }
+  sendReminderForPendingTask(data: { message: any }) {
+    this.server.emit('pendingTaskReminder', data);
+  }
   @SubscribeMessage('groupChat')
   notificationHandler(@MessageBody() body: unknown) {
     console.log(body);

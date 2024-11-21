@@ -8,14 +8,14 @@ import { IGetAllUsersResponse } from 'src/common/interface';
 export class UserService {
   constructor(@InjectModel(User.name) private userModel: Model<User>) {}
 
-  async create(userData: User): Promise<User> {
+  async create(userData: User) {
     const createdUser = new this.userModel(userData);
     return createdUser.save();
   }
 
   async getAllUsers(): Promise<IGetAllUsersResponse> {
     const users = (await this.userModel
-      .find({}, { _id: false, __v: false })
+      .find({}, { _id: false, __v: false, password: false })
       .exec()) as User[];
     return { data: { users } };
   }

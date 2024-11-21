@@ -20,11 +20,15 @@ export class AuthService {
 
   async signIn(email: string, pass: string): Promise<ISignInUserResponse> {
     const user = await this.usersService.findUser(email);
-    // TODO: decrypt the incoming pass and then check
+    // TODO: decrypt/hashed the incoming pass and then check
     if (user?.password !== pass) {
       return { error: UserError.UserNotFound };
     }
-    const accessToken = await this.getUserToken(user);
+    const accessToken = await this.getUserToken(
+      user.id,
+      user.email,
+      user.userName,
+    );
     return {
       data: { accessToken: accessToken },
     };
@@ -38,7 +42,7 @@ export class AuthService {
     if (await this.usersService.isUserExist(email)) {
       return { error: UserError.UserAlreadyExist };
     }
-    // TODO: encrypt the password before saving
+    // TODO: encrypt/hashed the password before saving
     const createUserReq: User = {
       userName: userName,
       email: email,
@@ -46,20 +50,26 @@ export class AuthService {
     };
 
     const user = await this.usersService.create(createUserReq);
-    const accessToken = await this.getUserToken(user);
+    const accessToken = await this.getUserToken(
+      user.id,
+      user.email,
+      user.userName,
+    );
 
     return { data: { accessToken: accessToken } };
   }
 
-  private async getUserToken(user: User) {
-    return this.jwtService.signAsync(this.getUserTokenParams(user));
+  private async getUserToken(id: string, email: string, userName: string) {
+    return this.jwtService.signAsync(
+      this.getUserTokenParams(id, email, userName),
+    );
   }
 
-  private getUserTokenParams(user: User) {
+  private getUserTokenParams(id: string, email: string, userName: string) {
     return {
-      userName: user.userName,
-      password: user.password,
-      email: user.email,
+      userName: userName,
+      Id: id,
+      email: email,
     };
   }
 }

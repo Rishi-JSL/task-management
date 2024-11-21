@@ -10,5 +10,5 @@ export class CreateTaskDto {
   @IsString()
   priority: number;
   @IsNumber()
-  dueDate: Date;
+  days: number;
 }
