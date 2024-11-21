@@ -1,4 +1,4 @@
-<p align="center">
+<!-- <p align="center">
   <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="200" alt="Nest Logo" /></a>
 </p>
 
@@ -18,13 +18,13 @@
   <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg"/></a>
     <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
   <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow"></a>
-</p>
+</p> -->
   <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
   [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
 
 ## Description
 
-Task Manager That manages all your projects and there tasks.
+Effortlessly Organize and Track Your Projects' Tasks, All in One Place.
 <!-- [Nest](https://github.com/nestjs/nest) framework TypeScript starter repository. -->
 
 ## Installation
@@ -65,7 +65,7 @@ $ npm run test:cov
 Nest is [MIT licensed](LICENSE).
 
 ## Auth
-Auth based on user 
+<!-- Auth based on user 
   user can create project 
   user can add collaborators
   collaborators can create, update and delete task with in the projects
@@ -76,4 +76,4 @@ Push notification
 Reminder
   Create cron job that remind project owner for the penning task before 24hr
 
-Filtering 
+Filtering  -->
