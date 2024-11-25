@@ -14,4 +14,4 @@ export class UserRole {
   @Prop({ type: String, required: true })
   role: UserRoleType;
 }
-export const UserRoleModel = SchemaFactory.createForClass(UserRole);
+export const UserRoleSchema = SchemaFactory.createForClass(UserRole);
