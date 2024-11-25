@@ -1,7 +1,4 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import mongoose from 'mongoose';
-import { User } from 'src/user/schema/user.schema';
-
 export interface ITask {
   taskId: string;
   tittle: string;
@@ -19,9 +16,6 @@ export class Project {
   @Prop({ required: true })
   description: string;
 
-  @Prop({ required: true, type: mongoose.Schema.Types.ObjectId, ref: 'User' })
-  owner: User;
-
   @Prop({
     type: [
       {
@@ -35,12 +29,6 @@ export class Project {
     ],
   })
   tasks: ITask[];
-
-  @Prop({
-    type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
-    required: true,
-  })
-  collaborators: User[];
 }
 
 export const ProjectSchema = SchemaFactory.createForClass(Project);

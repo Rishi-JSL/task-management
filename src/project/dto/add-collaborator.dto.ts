@@ -1,4 +1,5 @@
-import { IsEmail, IsString } from 'class-validator';
+import { IsEmail, IsNotEmpty, IsString } from 'class-validator';
+import { UserRoleType } from 'src/role/schema/user-role.schema';
 
 export class addCollaboratorDto {
   @IsString()
@@ -6,4 +7,8 @@ export class addCollaboratorDto {
 
   @IsEmail()
   collaboratorEmail: string;
+
+  @IsString()
+  @IsNotEmpty()
+  role: UserRoleType;
 }

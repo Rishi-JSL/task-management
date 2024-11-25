@@ -6,6 +6,7 @@ import { DAYS_IN_MS, HOURS_IN_MS } from 'src/common/constants';
 import { TaskNotificationGateway } from 'src/gateway/task-notification.gateway';
 import { UserService } from 'src/user/user.service';
 import { ITask, Project } from './schema/create.project';
+import { UserRole, UserRoleType } from 'src/role/schema/user-role.schema';
 
 export enum ProjectError {
   ProjectNotFound = 'ProjectNotFound',
@@ -14,6 +15,7 @@ export enum ProjectError {
 export class ProjectService {
   constructor(
     @InjectModel(Project.name) private projectModel: Model<Project>,
+    @InjectModel(UserRole.name) private userRoleModel: Model<UserRole>,
     private userService: UserService,
     private taskNotify: TaskNotificationGateway,
   ) {}
@@ -23,24 +25,31 @@ export class ProjectService {
     if (!owner) {
       return { error: UserError.UserNotFound };
     }
-    console.log('Project Owner', owner);
     const project: Project = {
       title: title,
       description: description,
-      owner: owner,
       tasks: [],
-      collaborators: [owner],
     };
     console.log('project details', project);
     const newProject = new this.projectModel(project);
     const savedNewProject = await newProject.save();
+    if (savedNewProject) {
+      const role: UserRole = {
+        projectId: savedNewProject.id,
+        userEmail: owner.email,
+        role: UserRoleType.SUPER_ADMIN,
+      };
+      const userRole = new this.userRoleModel(role);
+      await userRole.save();
+    }
     return savedNewProject;
   }
 
   async addCollaborator(
-    ownerEmail: string,
+    userEmail: string,
     projectId: string,
     collaboratorEmail: string,
+    roleType: UserRoleType,
   ) {
     const collaborator = await this.userService.findUser(collaboratorEmail);
     if (!collaborator) {
@@ -51,29 +60,44 @@ export class ProjectService {
     if (!project) {
       return { error: ProjectError.ProjectNotFound };
     }
+    const userRole = await this.userRoleModel
+      .findOne({ userEmail, projectId })
+      .exec();
 
-    if (project.owner.email != ownerEmail) {
+    if (userRole?.role == UserRoleType.ADMIN) {
       return { error: UserError.PermissionDenied };
     }
-    project.collaborators.push(collaborator);
-    const updatedProject = await project.save();
+    const collaboratorRole: UserRole = {
+      projectId: project.id,
+      userEmail: collaborator.email,
+      role: roleType,
+    };
+    const newCollaborator = new this.userRoleModel(collaboratorRole);
+    await newCollaborator.save();
     this.taskNotify.sendNotificationForTask({
-      message: `User ${collaboratorEmail} added to project ${updatedProject.title}`,
+      message: `User ${collaboratorEmail} added to project ${project.title}`,
     });
-    return updatedProject;
+    return newCollaborator;
   }
 
-  async getAllTasksFormProject(projectId: string) {
+  async getAllTasksFormProject(projectId: string, userEmail: string) {
     const project = await this.findProject(projectId);
     if (!project) {
       return { error: ProjectError.ProjectNotFound };
+    }
+    const userRole = await this.findUserRole(userEmail, projectId);
+    if (!userRole) {
+      return { error: UserError.PermissionDenied };
+    }
+    if (!this.isUserHaveReadAccessToTask(userRole.role)) {
+      return { error: UserError.PermissionDenied };
     }
     const tasks = project.tasks;
     return { data: { task: tasks } };
   }
 
   async deleteTaskFromProject(
-    ownerEmail: string,
+    userEmail: string,
     projectId: string,
     taskId: string,
   ) {
@@ -81,7 +105,11 @@ export class ProjectService {
     if (!project) {
       return { error: ProjectError.ProjectNotFound };
     }
-    if (project.owner.email != ownerEmail) {
+    const userRole = await this.findUserRole(userEmail, projectId);
+    if (!userRole) {
+      return { error: UserError.PermissionDenied };
+    }
+    if (!this.isUserHaveDeleteAccessToTask(userRole?.role)) {
       return { error: UserError.PermissionDenied };
     }
     project.tasks = project.tasks.filter((task: ITask) => {
@@ -98,7 +126,7 @@ export class ProjectService {
   }
 
   async createTask(
-    ownerEmail: string,
+    userEmail: string,
     projectId: string,
     title: string,
     description: string,
@@ -109,7 +137,11 @@ export class ProjectService {
     if (!project) {
       return { error: ProjectError.ProjectNotFound };
     }
-    if (project.owner.email != ownerEmail) {
+    const userRole = await this.findUserRole(userEmail, projectId);
+    if (!userRole) {
+      return { error: UserError.PermissionDenied };
+    }
+    if (!this.isUserHaveCreateAccessToTask(userRole?.role)) {
       return { error: UserError.PermissionDenied };
     }
     const task: ITask = {
@@ -128,35 +160,45 @@ export class ProjectService {
     return updatedProject;
   }
   async getAllProjectPendingTaskOwner() {
-    const projects = await this.projectModel
-      .find({}, { _id: false, __v: false })
-      .exec();
+    const projects = await this.projectModel.find().exec();
     const userPendingTask: Record<string, ITask[]> = {};
-    projects.forEach((project: Project) => {
-      const owner = String(project.owner);
+    projects.forEach(async (project) => {
+      const users = await this.userRoleModel
+        .find({ projectId: project.id })
+        .exec();
+      const owner = this.getProjectSuperAdmin(users);
+      const ownerEmail = owner?.userEmail as string;
+
+      if (!ownerEmail) return;
+
       project.tasks.forEach((task: ITask) => {
         if (task.dueDateInMs - HOURS_IN_MS > Date.now()) {
-          if (!userPendingTask[owner]) {
-            userPendingTask[owner] = [task];
+          if (!userPendingTask[ownerEmail]) {
+            userPendingTask[ownerEmail] = [task];
           } else {
-            userPendingTask[owner].push(task);
+            userPendingTask[ownerEmail].push(task);
           }
         }
       });
     });
     return userPendingTask;
   }
+  private getProjectSuperAdmin(userRole: UserRole[]) {
+    return userRole.find((userRole: UserRole) => {
+      return userRole.role == UserRoleType.SUPER_ADMIN;
+    });
+  }
 
-  async updateTaskStatus(
-    ownerEmail: string,
-    projectId: string,
-    taskId: string,
-  ) {
+  async updateTaskStatus(userEmail: string, projectId: string, taskId: string) {
     const project = await this.findProject(projectId);
     if (!project) {
       return { error: ProjectError.ProjectNotFound };
     }
-    if (project.owner.email != ownerEmail) {
+    const userRole = await this.findUserRole(userEmail, projectId);
+    if (!userRole) {
+      return { error: UserError.PermissionDenied };
+    }
+    if (!this.isUserHaveUpdateAccessToTask(userRole.role)) {
       return { error: UserError.PermissionDenied };
     }
     project.tasks.forEach((task: ITask) => {
@@ -173,11 +215,55 @@ export class ProjectService {
   }
 
   private async findProject(id: string) {
-    const project = await this.projectModel
-      .findById(id)
-      .populate('owner')
-      .populate('collaborator')
-      .exec();
+    const project = await this.projectModel.findById(id).exec();
     return project;
+  }
+
+  private async findUserRole(userEmail: string, projectId: string) {
+    const userRole = await this.userRoleModel
+      .findOne({ userEmail, projectId })
+      .exec();
+    return userRole;
+  }
+
+  private isUserHaveReadAccessToTask(role: UserRoleType) {
+    if (
+      role == UserRoleType.ADMIN ||
+      role == UserRoleType.EDITOR ||
+      role == UserRoleType.SUPER_ADMIN ||
+      role == UserRoleType.VIEWER
+    ) {
+      return true;
+    }
+    return false;
+  }
+
+  private isUserHaveDeleteAccessToTask(role: UserRoleType) {
+    if (
+      role == UserRoleType.SUPER_ADMIN ||
+      role == UserRoleType.ADMIN ||
+      role == UserRoleType.EDITOR
+    ) {
+      return true;
+    }
+    return false;
+  }
+
+  private isUserHaveUpdateAccessToTask(role: UserRoleType) {
+    if (
+      role == UserRoleType.SUPER_ADMIN ||
+      role == UserRoleType.ADMIN ||
+      role == UserRoleType.EDITOR
+    ) {
+      return true;
+    }
+    return false;
+  }
+
+  private isUserHaveCreateAccessToTask(role: UserRoleType) {
+    if (role == UserRoleType.SUPER_ADMIN || role == UserRoleType.ADMIN) {
+      return true;
+    }
+    return false;
   }
 }

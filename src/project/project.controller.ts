@@ -21,8 +21,13 @@ export class ProjectController {
 
   @UseGuards(AuthGuard)
   @Get('/:projectId')
-  getALLTaskFromProjects(@Param('projectId') projectId: string) {
-    return this.projectService.getAllTasksFormProject(projectId);
+  getALLTaskFromProjects(
+    @Req() request: any,
+    @Param('projectId') projectId: string,
+  ) {
+    const userData = request['user'] as IJwtTokenUserData;
+    const { email } = userData;
+    return this.projectService.getAllTasksFormProject(projectId, email);
   }
 
   @UseGuards(AuthGuard)
@@ -43,13 +48,14 @@ export class ProjectController {
     @Req() request: any,
     @Body() addCollaborator: addCollaboratorDto,
   ) {
-    const { projectId, collaboratorEmail } = addCollaborator;
+    const { projectId, collaboratorEmail, role } = addCollaborator;
     const userData = request['user'] as IJwtTokenUserData;
     const userEmail = userData.email;
     return this.projectService.addCollaborator(
       userEmail,
       projectId,
       collaboratorEmail,
+      role,
     );
   }
 
