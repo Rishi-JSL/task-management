@@ -6,7 +6,14 @@ import {
   WebSocketServer,
 } from '@nestjs/websockets';
 import { Server } from 'socket.io';
-@WebSocketGateway()
+@WebSocketGateway({
+  cors: {
+    origin: '*', // Allow all origins, but you can restrict to a specific domain like ['http://127.0.0.1:5501']
+    methods: ['GET', 'POST', 'DELETE', 'PATCH'], // Allow GET and POST methods
+    allowedHeaders: ['Content-Type', 'Authorization'], // Allow specific headers
+    credentials: true, // Allow credentials (cookies, etc.)
+  },
+})
 export class TaskNotificationGateway implements OnModuleInit {
   @WebSocketServer()
   server: Server;
