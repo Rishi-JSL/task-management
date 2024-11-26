@@ -60,7 +60,7 @@ export class ProjectController {
   }
 
   @UseGuards(AuthGuard)
-  @Delete('/:projectId/tasks/:taskId')
+  @Delete('/:projectId/task/:taskId')
   deleteTaskFromProjects(
     @Req() request: any,
     @Param('projectId') projectId: string,

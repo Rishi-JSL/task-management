@@ -7,7 +7,7 @@ export class CreateTaskDto {
   description: string;
   @IsString()
   title: string;
-  @IsString()
+  @IsNumber()
   priority: number;
   @IsNumber()
   days: number;

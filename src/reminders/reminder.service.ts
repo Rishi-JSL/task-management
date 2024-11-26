@@ -12,10 +12,10 @@ export class TaskReminderService {
     this.logger = new Logger();
   }
 
-  @Cron('* * * 12 * *')
+  @Cron('1 * * * * *')
   async handleCron() {
     console.log('testing');
-    this.logger.log('Called when the current second is 45');
+    this.logger.log('Called when the current second is 1');
 
     const pendingTaskInProjectsForOwner =
       await this.projectService.getAllProjectPendingTaskOwner();

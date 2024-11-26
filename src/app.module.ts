@@ -13,11 +13,11 @@ import { ScheduleModule } from '@nestjs/schedule';
 @Module({
   imports: [
     MongooseModule.forRoot(databaseUrl),
-    ScheduleModule.forRoot(),
     UserModule,
     AuthModule,
     TaskNotificationModule,
     ProjectModule,
+    ScheduleModule.forRoot(),
     TaskReminderModule,
   ],
   controllers: [AppController],

@@ -17,6 +17,7 @@ export class TaskNotificationGateway implements OnModuleInit {
     });
   }
   sendNotificationForTask(data: { message: string }) {
+    console.log('task notification', data);
     this.server.emit('taskNotification', data);
   }
   sendReminderForPendingTask(data: { message: any }) {

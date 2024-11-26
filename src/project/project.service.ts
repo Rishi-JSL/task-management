@@ -9,7 +9,8 @@ import { ITask, Project } from './schema/create.project';
 import { UserRole, UserRoleType } from 'src/role/schema/user-role.schema';
 
 export enum ProjectError {
-  ProjectNotFound = 'ProjectNotFound',
+  ProjectNotFound = 'projectNotFound',
+  CollaboratorAlreadyPartOfProject = 'collaboratorAlreadyPartOfProject',
 }
 @Injectable()
 export class ProjectService {
@@ -25,6 +26,7 @@ export class ProjectService {
     if (!owner) {
       return { error: UserError.UserNotFound };
     }
+    // TODO: unique key for projects identify project exist before creating
     const project: Project = {
       title: title,
       description: description,
@@ -60,9 +62,7 @@ export class ProjectService {
     if (!project) {
       return { error: ProjectError.ProjectNotFound };
     }
-    const userRole = await this.userRoleModel
-      .findOne({ userEmail, projectId })
-      .exec();
+    const userRole = await this.findUserRole(userEmail, projectId);
 
     if (userRole?.role == UserRoleType.ADMIN) {
       return { error: UserError.PermissionDenied };
@@ -72,6 +72,13 @@ export class ProjectService {
       userEmail: collaborator.email,
       role: roleType,
     };
+    const collaboratorRoleInDb = await this.findUserRole(
+      collaboratorEmail,
+      projectId,
+    );
+    if (collaboratorRoleInDb) {
+      return { error: ProjectError.CollaboratorAlreadyPartOfProject };
+    }
     const newCollaborator = new this.userRoleModel(collaboratorRole);
     await newCollaborator.save();
     this.taskNotify.sendNotificationForTask({
@@ -120,7 +127,7 @@ export class ProjectService {
     });
     const updatedProject = await project.save();
     this.taskNotify.sendNotificationForTask({
-      message: `User ${'collaboratorEmail'} deleted task ${taskId} from project ${project.title}`,
+      message: `User ${userEmail} deleted task ${taskId} from project ${project.title}`,
     });
     return updatedProject;
   }

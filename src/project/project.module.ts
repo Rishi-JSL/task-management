@@ -9,8 +9,8 @@ import { Project, ProjectSchema } from './schema/create.project';
 
 @Module({
   imports: [
-    MongooseModule.forFeature([{ name: Project.name, schema: ProjectSchema }]),
     MongooseModule.forFeature([
+      { name: Project.name, schema: ProjectSchema },
       { name: UserRole.name, schema: UserRoleSchema },
     ]),
     UserModule,
