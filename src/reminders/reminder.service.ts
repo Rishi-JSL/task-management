@@ -1,8 +1,9 @@
-import { Logger } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { TaskNotificationGateway } from 'src/gateway/task-notification.gateway';
 import { ProjectService } from 'src/project/project.service';
 
+@Injectable()
 export class TaskReminderService {
   private logger: any;
   constructor(
